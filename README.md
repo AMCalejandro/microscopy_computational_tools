@@ -6,11 +6,11 @@ The scripts are easy to modify, e.g., to add a new model.
 
 ## Installation and dependencies
 
-We use [Pixi](https://pixi.sh/latest/#installation)] for dependency management. Run `pixi install` to download the dependencies.
+We use [Pixi](https://pixi.sh/latest/#installation) for dependency management. Run `pixi install` to download the dependencies.
 
 ## Cell centers or embbeddings of images
 
-The script `image_embedding.py` runs a model on an entire image or set of images.  Currently, the following models are supported:
+The script `image_embedding.py` runs a model on an entire multichannel image.  Currently, the following models are supported:
 
 * [Cellpose](https://github.com/MouseLand/cellpose)
 * [UniDINO](https://github.com/Bayer-Group/uniDINO/)
@@ -19,7 +19,8 @@ The output is consolidated into a single csv, tsv or HDF5 file per plate.
 
 ```
 usage: image_embedding.py [@h]
-                          {cellpose,unidino} model_path plate_path channel_names channel_substrings num_workers [num_processes] [process_idx] [output_file]
+                          {cellpose,unidino} model_path plate_path channel_names channel_substrings
+                          [num_workers] [num_processes] [process_idx] [output_file]
 
 per cell embedding
 
@@ -27,9 +28,9 @@ positional arguments:
   {cellpose,unidino}
   model_path          model
   plate_path          folder on the local file system containing the images of one plate
-  channel_names       comma seperated names of channels
-  channel_substrings  comma seperated substrings of filename to identify channels
-  num_workers         number of processes for loading data
+  channel_names       comma separated names of channels
+  channel_substrings  comma separated substrings of filename to identify channels
+  num_workers         number of processes for loading data (default: 1)
   num_processes       number of parallel runs of this script (default: 1)
   process_idx         index of parallel run {0, 1, ..., num_processes -1} (default: 0)
   output_file         output filename (default: embedding.tsv)
@@ -40,17 +41,17 @@ options:
 
 Model_path is the filename of the model. Cellpose has a hardcoded model path and ignores this parameter. For uniDINO, it should point to the file `uniDINO.pth` that can be obtained from [Zenodo](https://zenodo.org/records/14988837).
 
-The channel names should match the model input. Cellpose expects the DNA channel. UniDINO is channel agnostic and creates a 384\*num_channels dimensional embedding for each channel. Channels are sorted alphabetically to create consistent output, so the first 384 components correspond to the alphabetically first channel.
+The channel names should match the model input. Cellpose expects the DNA channel. UniDINO is channel agnostic and creates a 384\*num_channels dimensional embedding for each channel. Channels are sorted alphabetically to create consistent output, so for UniDINO the first 384 components correspond to the alphabetically first channel.
 
-The script uses a Torch dataloader. If num_workers > 0, it launches background processes for reading images.
+The script uses a Torch dataloader. If num_workers = 0, it uses the main thread for reading images, otherwise it launches num_workers background processes.
 
-Running multiple instances in parallel on the same machine can help saturate the GPU. Below is an example that uses the convenient utility [moreutils](https://joeyh.name/code/moreutils/) parallel. When num_processes > 1, the output filename is automatically modified to contain the process index. For example, with three parallel processes, the output files will be named embedding_0_3.tsv, embedding_1_3.tsv, and embedding_2_3.tsv. These files can be concatenated with `cat embedding_* > embedding.tsv`.
+Even with the Torch dataloader, the CPU might be saturated before the GPU. Running multiple instances of the image_embedding.py script in parallel on the same machine can help saturate the GPU. Below is an example that uses the convenient utility [moreutils](https://joeyh.name/code/moreutils/) parallel. When num_processes > 1, the output filename is automatically modified to contain the process index. For example, with three parallel processes, the output files will be named embedding_0_3.tsv, embedding_1_3.tsv, and embedding_2_3.tsv. These files can be concatenated with `cat embedding_* > embedding.tsv`.
 
 Example commands:
 ```
-pixi run python image_embedding.py cellpose - BR00123 DNA ch5 0 4
-parallel -j 4 pixi run python image_embedding.py cellpose - BR00123 DNA ch5 0 4 -- 0 1 2 3
-pixi run python image_embedding.py unidino uniDINO.pth BR00123 DNA,RNA,AGP,ER,Mito -ch5,-ch3,-ch1,-ch4,-ch2 0
+pixi run python image_embedding.py cellpose - BR00123 DNA ch5
+parallel -j 3 pixi run python image_embedding.py cellpose - BR00123 DNA ch5 0 3 -- 0 1 2
+pixi run python image_embedding.py unidino uniDINO.pth BR00123 DNA,RNA,AGP,ER,Mito -ch5,-ch3,-ch1,-ch4,-ch2
 ```
 
 The output is a tsv file with one line per file containing the filename and embedding. With cellpose, the embedding is split into two columns:
@@ -81,8 +82,8 @@ The output is consolidated into a single csv, tsv or HDF5 file per plate.
 
 ```
 usage: cell_embedding.py [@h]
-                         {cpcnn,dino4cells} model_path plate_path channel_names channel_substrings centers_path num_workers [output_file]
-                         [inspection_file]
+                         {cpcnn,dino4cells} model_path plate_path channel_names channel_substrings
+                         centers_path [num_workers] [output_file] [inspection_file]
 
 per image embedding
 
@@ -90,10 +91,10 @@ positional arguments:
   {cpcnn,dino4cells}
   model_path          model
   plate_path          folder on the local file system containing the images of one plate
-  channel_names       comma seperated names of channels
-  channel_substrings  comma seperated substrings of filename to identify channels
+  channel_names       comma separated names of channels
+  channel_substrings  comma separated substrings of filename to identify channels
   centers_path        filename with cell centers
-  num_workers         number of processes for loading data
+  num_workers         number of processes for loading data (default: 1)
   output_file         output filename (default: embedding.tsv)
   inspection_file     output filename with image crops for manual inspection (default: None)
 
@@ -110,7 +111,7 @@ The script uses a Torch dataloader. If num_workers > 0, it launches background p
 
 Example command:
 ```
-python cell_embedding.py cpcnn Cell_Painting_CNN_v1.hdf5 BR00123 DNA,RNA,AGP,ER,Mito -ch5,-ch3,-ch1,-ch4,-ch2 cellpose_output.csv 0
+python cell_embedding.py cpcnn Cell_Painting_CNN_v1.hdf5 BR00123 DNA,RNA,AGP,ER,Mito -ch5,-ch3,-ch1,-ch4,-ch2 cellpose_output.csv
 ```
 
 Depending on the output filename, the output file will be csv, tsv or HDF5. For csv or tsv output, there will be one line per cell containing the filename, i,j coordinates of cell centers, and the embedding:
@@ -121,4 +122,4 @@ r01c01f01p01-ch5sk1fk1fl1.jxl	2	51	['1.236e+00', '2.663e+00', .... ]
 r01c01f01p01-ch5sk1fk1fl1.jxl	8	154	['1.539e+00', '2.860e+00', .... ]
 ```
 
-For HDF5 output, under meta\filename is a list of filenames. Under cpcnn or dino4cells is a matrix where each cell is one row, the first column corresponds to the filename index, the second and third column are the i/j coordinates, and the remaining columns are the embedding.
+For HDF5 output, the key meta\filename contains a list of filenames. The key cpcnn or dino4cells has a matrix where each row corresponds to one cell, the first column corresponds to the filename index, the second and third column are the i/j coordinates, and the remaining columns are the embedding.
