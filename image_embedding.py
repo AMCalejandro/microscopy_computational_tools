@@ -13,21 +13,23 @@ def image_embeddings(model_name, model_path, images_folder, output_file, channel
     if model_name == 'cellpose':
         from models.cellpose import cell_center_model
         model = cell_center_model()
-        csv_header = 'file i j'.split()
         input_channels = ['DNA']
         num_output_features = 2
+        csv_header = 'file i j'.split()
         collate_fn = lambda x : x[0] # avoids conversion to Torch tensor
         target_size = (512, 512)
         log_scale = True
+        output_hdf5_supported = False # number of rows is not known beforehand
     elif model_name == 'unidino':
         from models.unidino import unidino_model
         model = unidino_model(args.model_path)
-        csv_header = 'file embedding'.split()
         input_channels = sorted(channel_names)
         num_output_features = 384 * len(input_channels)
+        csv_header = ['file'] + [f'feature {idx}' for idx in range(num_output_features)]
         collate_fn = None
         target_size = None
         log_scale = False
+        output_hdf5_supported = True
 
     missing_channels = set(input_channels) - set(channel_names)
     if len(missing_channels) > 0:
@@ -55,13 +57,14 @@ def image_embeddings(model_name, model_path, images_folder, output_file, channel
     dataloader = DataLoader(ds, batch_size=1, num_workers=num_workers, pin_memory=True, collate_fn=collate_fn)
 
     # set up hdf5, tsv, csv, and png output
-    if num_processes > 0:
+    if num_processes > 1:
         # add process index to filename (e.g., turn output.tsv into output_3_4.tsv for process 3 out of 4)
         output_file = output_file.split('.')
         max_len = len(str(num_processes-1))
         output_file[-2] += f'_{process_idx:0{max_len}d}_{num_processes}'
         output_file = '.'.join(output_file)
     if output_file.endswith('.h5') or output_file.endswith('.hdf5'):
+        assert(output_hdf5_supported)
         from utils.hdf5writer import embedding_writer
         num_rows = len(ds)
         writer = embedding_writer(output_file, model_name, num_rows, num_output_features, 'f4')
@@ -79,9 +82,13 @@ def image_embeddings(model_name, model_path, images_folder, output_file, channel
             images = images[0, ::]
 
         filename = filenames[0].removeprefix(images_folder) # name of the first channel
-        print(filename, end=' ')
+        print(filename, end='')
         embedding = model(images, im_size)
-        print(len(embedding[0]))
+        if model_name == 'cellpose':
+            print('', len(embedding[0]))
+        else:
+            # other models have only one embedding per image, not worth showing
+            print()
         writer.writerow(filename, embedding)
     writer.close()
 

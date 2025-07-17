@@ -8,7 +8,7 @@ def cell_center_model(diameter=25, flow_threshold=0.4, channels=[0,0]):
 
     # based on https://github.com/MouseLand/cellpose/blob/main/cellpose/dynamics.py
     def eval_model(images, im_size):
-        assert(images[0].shape == (1, 512, 512))
+        assert(images.shape == (1, 512, 512))
         images = [images[0, ::]]
         scale_x = im_size[0] / 512
         scale_y = im_size[1] / 512

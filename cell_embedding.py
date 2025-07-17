@@ -50,7 +50,8 @@ def cell_embeddings(model_name, model_path, images_folder, centers, output_file,
     if output_file.endswith('.h5') or output_file.endswith('.hdf5'):
         from utils.hdf5writer import embedding_writer
         num_rows = len(ds)
-        writer = embedding_writer(output_file, model_name, num_rows, num_output_features, 'f4')
+        # the +2 accounts for i/j coordinates
+        writer = embedding_writer(output_file, model_name, num_rows, num_output_features + 2, 'f4')
     else:
         from utils.csvwriter import CSVWriter
         writer = CSVWriter(output_file)
