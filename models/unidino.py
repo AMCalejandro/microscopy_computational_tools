@@ -49,8 +49,8 @@ def unidino_model(pretrained_weights_path, embed_dim=384):
             dimension=2, size=crop_size, step=stride
         )
 
-        # dimensio of x is num_channels x num_crops_x x num_crops_y x 224 x 224
-        # reshape to model input dimension (num_channels * num_crops) x 1 x 224 x 224
+        # dimension of x is num_channels x num_crops_x x num_crops_y x 224 x 224
+        # reshape to model input dimension: (num_channels * num_crops) x 1 x 224 x 224
         x = x.reshape(-1, 1, crop_size, crop_size)
 
         with torch.inference_mode():
@@ -66,6 +66,6 @@ def unidino_model(pretrained_weights_path, embed_dim=384):
         # compute mean over crops
         y = np.mean(y, axis=0)
 
-        return [y.tolist()]
+        return y.tolist()
 
     return eval_network

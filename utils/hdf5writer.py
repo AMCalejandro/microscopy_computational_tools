@@ -70,15 +70,22 @@ class embedding_writer:
     def __init__(self, filename: str, model_name: str, num_rows: int, num_cols: int, dtype='f4'):
         self.h5writer = HDF5Writer(filename)
         self.filenames = []
-        num_cols += 3 # add file_idx, center_i, center_j columns
-        self.dataset = self.h5writer.add_dataset(model_name, num_rows, num_cols, dtype)
+        self.num_cols = num_cols
+        # the +1 accounts for filename column
+        self.dataset = self.h5writer.add_dataset(model_name, num_rows, num_cols + 1, dtype)
     
-    def writerows(self, filename, centers_i, centers_j, embeddings):
+    def writerows(self, filename, columns):
         if len(self.filenames) == 0 or self.filenames[-1] != filename:
             self.filenames.append(filename)
         file_idx = len(self.filenames) - 1
-        meta = np.array([[file_idx]*len(centers_i), centers_i, centers_j]).T
-        self.dataset.write_rows( np.concatenate((meta, embeddings), axis=1) )
+        num_rows = columns[-1].shape[0]
+        meta = np.array([file_idx] * num_rows).reshape((num_rows, 1))
+        columns = [np.array(col).reshape((num_rows, -1)) for col in columns]
+        self.dataset.write_rows( np.concatenate((meta, *columns), axis=1) )
+
+    def writerow(self, filename, columns):
+        columns = np.array(columns).reshape((self.num_cols, -1))
+        self.writerows(filename, columns)
 
     def close(self):
         meta = pd.DataFrame({'filename': self.filenames})
