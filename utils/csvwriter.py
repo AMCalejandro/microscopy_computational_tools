@@ -16,7 +16,8 @@ class CSVWriter:
 
     def format(self, val):
         if hasattr(val, '__iter__'): # list, tuple, ndarray
-            return [self.format(v) for v in val]
+            val = [self.format(v) for v in val]
+            return str(val).replace("'", "") # remove quotes around scientific notation
         if isinstance(val, numbers.Real) and not isinstance(val, numbers.Integral):
             # floating type, including numpy types
             return f'{val:.{self.precision}e}'
