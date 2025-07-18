@@ -40,7 +40,8 @@ def cell_embeddings(model_name, model_path, images_folder, centers, output_file,
     image_groups = [imgrp for imgrp in image_groups if all(filepath in actual_files for filepath in imgrp)]
 
     if len(image_groups) != len(centers):
-        print(f"WARNING: Found complete image sets for {len(image_groups)} out of {len(centers)}")
+        num_incomplete = len(centers) - len(image_groups)
+        print(f"WARNING: {num_incomplete} out of {len(centers)} image sets have missing images and will not be processed.")
 
     ds = Cell_Data_Set(image_groups, centers)
     bs = Cell_Batch_Sampler(image_groups, centers)
