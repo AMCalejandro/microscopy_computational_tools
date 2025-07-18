@@ -107,6 +107,8 @@ if args.channel_names.count(',') != args.channel_substrings.count(','):
 channel_names      = [s.strip() for s in args.channel_names.split(',')]
 channel_substrings = [s.strip() for s in args.channel_substrings.split(',')]
 
-centers = pd.read_table(args.centers_path, converters={'i':literal_eval, 'j':literal_eval}, index_col='file')
+centers = pd.read_table(args.centers_path, index_col='file', sep=None)
+centers['i'] = centers['i'].apply(literal_eval)
+centers['j'] = centers['j'].apply(literal_eval)
 
 cell_embeddings(args.model, args.model_path, images_folder, centers, args.output_file, args.inspection_file, channel_names, channel_substrings, args.num_workers)
