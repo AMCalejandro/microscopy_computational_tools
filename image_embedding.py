@@ -25,7 +25,7 @@ def image_embeddings(model_name, model_path, images_folder, output_file, channel
         model = unidino_model(args.model_path)
         input_channels = sorted(channel_names)
         num_output_features = 384 * len(input_channels)
-        csv_header = ['file'] + [f'feature {idx}' for idx in range(num_output_features)]
+        csv_header = ['file'] + [f'feature_{idx}' for idx in range(num_output_features)]
         collate_fn = None
         target_size = None
         log_scale = False
