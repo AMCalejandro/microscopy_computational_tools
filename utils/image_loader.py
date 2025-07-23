@@ -5,8 +5,13 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import Sampler
+from enum import Enum, auto
 
 SCALE = 2**16 - 1
+
+class Scaling(Enum):
+    CELL_ZERO_ONE = auto() # linearly scale each cell crop to the interval [0, 1]
+    CHANNEL_Z_SCORE = auto()  # z-score each channel
 
 def rescale(arr):
     arr = arr.copy()
@@ -21,9 +26,10 @@ def log_scale(arr):
 
 
 class Cell_Data_Set(Dataset):
-    def __init__(self, image_groups, centers, subwindow=128):
+    def __init__(self, image_groups, centers, scaling, subwindow=128):
         self.image_groups = image_groups
         self.centers = centers
+        self.scaling = scaling
         self.cells_per_image = centers.i.str.len().to_dict()
         self.subwindow = subwindow
         self.file_loaded = None
@@ -41,15 +47,19 @@ class Cell_Data_Set(Dataset):
     def __len__(self): 
         num_cells = len(self.cell_idx_to_image_idx)
         return num_cells
-    def extract_subimage(self, images, center_i, center_j, subwindow=128):
+    def extract_subimage(self, images, center_i, center_j, subwindow=None):
+        if subwindow is None:
+            subwindow = self.subwindow
         output = np.zeros((len(self.images), subwindow, subwindow), dtype=np.float32)  # channels, width, height
         for ichan, im in enumerate(self.images):
             output[ichan, ...] = im[center_i:center_i + subwindow, center_j:center_j + subwindow]
         # rescale each subimage
-        output -= np.nanmin(output, axis=(1, 2), keepdims=True)
-        out_max = np.nanmax(output, axis=(1, 2), keepdims=True)
-        out_max[out_max == 0] = 1
-        output /= out_max
+        if self.scaling == Scaling.CELL_ZERO_ONE:
+            output -= np.nanmin(output, axis=(1, 2), keepdims=True)
+            out_max = np.nanmax(output, axis=(1, 2), keepdims=True)
+            out_max[out_max == 0] = 1
+            output /= out_max
+
         output[ np.isnan(output) ] = 0 # padded values
         return output
     def __getitem__(self, idx):
@@ -59,12 +69,19 @@ class Cell_Data_Set(Dataset):
             self.images = []
             for filename in self.image_groups[image_idx]:
                 try:
-                    im = np.asarray(Image.open(filename))
+                    im = Image.open(filename)
+                    im = np.asarray(im)
+                    if self.scaling == Scaling.CHANNEL_Z_SCORE:
+                        im_std = np.std(im)
+                        if im_std == 0:
+                            im = 0*im
+                        else:
+                            im = (im - np.mean(im)) / im_std
                     self.images.append( im.astype(np.float32) )
                 except Exception as e:
                     print(f'WARNING: Loading file failed for {filename}', e)
-                    i_max = self.centers['i'].iloc[image_idx].max()
-                    j_max = self.centers['j'].iloc[image_idx].max()
+                    i_max = max( self.centers['i'].iloc[image_idx] )
+                    j_max = max( self.centers['j'].iloc[image_idx] )
                     self.images.append( np.zeros((i_max, j_max), dtype=np.float32) )
             # pad images to simplify subimage extraction
             padwidth = self.subwindow // 2
@@ -72,7 +89,7 @@ class Cell_Data_Set(Dataset):
             self.images = [np.pad(im, (padwidth, self.subwindow - padwidth), constant_values=np.nan) for im in self.images]
         center_i = self.centers['i'].iloc[image_idx][ self.cell_idx_to_offset[idx] ]
         center_j = self.centers['j'].iloc[image_idx][ self.cell_idx_to_offset[idx] ]
-        cell = self.extract_subimage(self.images, center_i, center_j, subwindow=128)
+        cell = self.extract_subimage(self.images, center_i, center_j, self.subwindow)
         return self.centers.index[image_idx], center_i, center_j, cell
 
 
