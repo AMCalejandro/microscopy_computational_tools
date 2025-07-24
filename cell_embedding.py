@@ -7,7 +7,7 @@ from utils.subimage_inspector import Subimage_inspector
 from ast import literal_eval
 import argparse
 from torch.utils.data import DataLoader
-from utils.image_loader import Cell_Data_Set, Cell_Batch_Sampler
+from utils.image_loader import Cell_Data_Set, Cell_Batch_Sampler, Scaling
 
 def cell_embeddings(model_name, model_path, images_folder, centers, output_file, inspection_file, channel_names, channel_substrings, num_workers):
     output = []
@@ -16,11 +16,19 @@ def cell_embeddings(model_name, model_path, images_folder, centers, output_file,
         model = dino_model(args.model_path)
         num_output_features = 768
         input_channels = ['DNA', 'RNA', 'ER', 'AGP', 'Mito']
+        scaling = Scaling.CHANNEL_Z_SCORE
+    if model_name == 'dino4cells_small':
+        from models.dino4cells import dino_model
+        model = dino_model(args.model_path)
+        num_output_features = 384
+        input_channels = ['DNA', 'RNA', 'ER', 'AGP', 'Mito']
+        scaling = Scaling.CHANNEL_Z_SCORE
     elif model_name == 'cpcnn':
         from models.cpcnn import cpcnn_model
         model = cpcnn_model(args.model_path)
         num_output_features = 672
         input_channels = ['DNA', 'RNA', 'ER', 'AGP', 'Mito']
+        scaling = Scaling.CELL_ZERO_ONE
 
     missing_channels = set(input_channels) - set(channel_names)
     if len(missing_channels) > 0:
@@ -43,7 +51,7 @@ def cell_embeddings(model_name, model_path, images_folder, centers, output_file,
         num_incomplete = len(centers) - len(image_groups)
         print(f"WARNING: {num_incomplete} out of {len(centers)} image sets have missing images and will not be processed.")
 
-    ds = Cell_Data_Set(image_groups, centers)
+    ds = Cell_Data_Set(image_groups, centers, scaling)
     bs = Cell_Batch_Sampler(image_groups, centers)
     dataloader = DataLoader(ds, batch_sampler=bs, num_workers=num_workers, pin_memory=True)
 
@@ -86,7 +94,7 @@ def cell_embeddings(model_name, model_path, images_folder, centers, output_file,
 
 
 parser = argparse.ArgumentParser(description='per image embedding', prefix_chars='@')
-parser.add_argument('model', type=str, choices=['cpcnn', 'dino4cells'])
+parser.add_argument('model', type=str, choices=['cpcnn', 'dino4cells', 'dino4cells_small'])
 parser.add_argument('model_path', type=str, help='model')
 parser.add_argument('plate_path', type=str, help='folder containing images')
 parser.add_argument('channel_names', type=str, help='comma seperated names of channels')
@@ -108,7 +116,7 @@ if args.channel_names.count(',') != args.channel_substrings.count(','):
 channel_names      = [s.strip() for s in args.channel_names.split(',')]
 channel_substrings = [s.strip() for s in args.channel_substrings.split(',')]
 
-centers = pd.read_table(args.centers_path, index_col='file', sep=None)
+centers = pd.read_table(args.centers_path, index_col='file', sep=None, engine='python')
 centers['i'] = centers['i'].apply(literal_eval)
 centers['j'] = centers['j'].apply(literal_eval)
 
