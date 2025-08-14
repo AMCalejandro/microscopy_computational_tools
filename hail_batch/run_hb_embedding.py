@@ -11,9 +11,10 @@ parser.add_argument('output_folder', type=str, help='output folder')
 parser.add_argument('channel_names', type=str, help='comma seperated names of channels')
 parser.add_argument('channel_substrings', type=str, help='comma seperated substrings of filename to identify channels')
 parser.add_argument('centers_folder', type=str, help='folder containing cell centers files')
-parser.add_argument('plates', type=str, nargs='+', help='plate names')
-args = parser.parse_args()
+parser.add_argument('plates', type=str, help='comma separated plate names')
 
+args = parser.parse_args()
+plates = args.plates.split(',')
 plate_path = urlparse(args.plate_path)
 bucket_name = plate_path.netloc
 input_folder = plate_path.path.rstrip('/')
@@ -27,14 +28,14 @@ backend = hb.ServiceBackend(billing_project=config['hail-batch']['billing-projec
                             regions=config['hail-batch']['regions'])
 
 b = hb.Batch(backend=backend, name=f'embedding {args.model}')
-for plate in args.plates:
+for plate in plates:
     j = b.new_job(name=f'embedding {args.model} {plate}')
     j.cloudfuse(bucket_name, '/images')
     j._machine_type = config['embedding']['machine-type']
     j.storage('30Gi') # should be large enough for pixi (12 GB), model and tsv output (not for images)
     model_weights = b.read_input(config['embedding']['model-weights'][args.model])
     centers_file_path = f"{args.centers_folder.rstrip('/')}/cellpose_{plate}.tsv"
-    centers_file = b.read_input(centers_file_path.format(plate=plate))
+    centers_file = b.read_input(centers_file_path)
     num_workers = config['embedding']['num-workers']
     image_folder = f'{input_folder}/{plate}/'
 
