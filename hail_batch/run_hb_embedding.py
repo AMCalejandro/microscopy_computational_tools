@@ -27,12 +27,30 @@ backend = hb.ServiceBackend(billing_project=config['hail-batch']['billing-projec
                             remote_tmpdir=config['hail-batch']['remote-tmpdir'],
                             regions=config['hail-batch']['regions'])
 
+
+monitor_script = """
+#!/bin/bash
+monitor_gpu() {
+    while true; do
+        echo "===== $(date) ====="
+        nvidia-smi
+        sleep 60
+    done
+}
+
+monitor_gpu &
+
+pixi run python embeddings/run_model.py "$@"
+
+trap "kill $! 2>/dev/null" EXIT
+"""
+
 b = hb.Batch(backend=backend, name=f'embedding {args.model}')
 for plate in plates:
     j = b.new_job(name=f'embedding {args.model} {plate}')
     j.cloudfuse(bucket_name, '/images')
     j._machine_type = config['embedding']['machine-type']
-    j.storage('30Gi') # should be large enough for pixi (12 GB), model and tsv output (not for images)
+    j.storage('40Gi') # should be large enough for pixi (12 GB), model and tsv output (not for images)
     model_weights = b.read_input(config['embedding']['model-weights'][args.model])
     centers_file_path = f"{args.centers_folder.rstrip('/')}/cellpose_{plate}.tsv"
     centers_file = b.read_input(centers_file_path)
@@ -41,12 +59,18 @@ for plate in plates:
 
     j.command('apt update')
     j.command('apt install -y git curl moreutils')
-    j.command('git clone https://github.com/atgu/microscopy_computational_tools.git')
+
+    j.command(f"echo '{monitor_script}' > run_with_monitor.sh")
+    j.command("chmod +x run_with_monitor.sh")
+
+    # j.command('git clone https://github.com/atgu/microscopy_computational_tools.git')
+    j.command('git clone https://github.com/AMCalejandro/microscopy_computational_tools.git')
     j.command('cd microscopy_computational_tools')
     j.command('curl -fsSL https://pixi.sh/install.sh | sh')
     j.command('export PATH=/root/.pixi/bin:$PATH')
     j.command('pixi install')
-    j.command(f'pixi run python embeddings/run_model.py {args.model} {model_weights} /images/{quote(image_folder)} {quote(args.channel_names)} {quote(args.channel_substrings)} {quote(centers_file)} {num_workers} embedding.tsv crops.png')
+    j.command(f"../run_with_monitor.sh {args.model} {model_weights} /images/{quote(image_folder)} {quote(args.channel_names)} {quote(args.channel_substrings)} {quote(centers_file)} {num_workers} embedding.tsv crops.png")
+    # j.command(f'pixi run python embeddings/run_model.py {args.model} {model_weights} /images/{quote(image_folder)} {quote(args.channel_names)} {quote(args.channel_substrings)} {quote(centers_file)} {num_workers} embedding.tsv crops.png')
     j.command(f'mv embedding.tsv {j.ofile1}')
     j.command(f'mv crops.png {j.ofile2}')
     b.write_output(j.ofile1, f'{output_folder}/embedding_{args.model}_{plate}.tsv')
