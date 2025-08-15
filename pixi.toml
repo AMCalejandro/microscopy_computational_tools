@@ -8,7 +8,6 @@ version = "0.1.0"
 
 [dependencies]
 python = "3.12.*"
-numpy = "*"
 pyyaml = "*"
 numpy = "*"
 h5py = "*"
