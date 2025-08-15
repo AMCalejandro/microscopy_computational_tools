@@ -46,14 +46,15 @@ for file_path in h5_files:
     j.cloudfuse(bucket_name, '/h5_files')
     j._machine_type = config['embedding']['machine-type']
     j.storage("8G")
-    num_workers = config['embedding']['num-workers']
 
     j.command('apt update')
-    j.command('apt install -y pip PyYAM')
-    j.command('git clone https://github.com/AMCalejandro/microscopy_computational_tools.git')
+    j.command('apt install -y git curl moreutils')
+    j.command('git clone https://github.com/atgu/microscopy_computational_tools.git')
     j.command("cd microscopy_computational_tools")
-    
-    j.command(f'python embeddings/avg_files.py --merge --input /h5_files/{input_folder}/{file_name} --output avg.h5')
+    j.command('curl -fsSL https://pixi.sh/install.sh | sh')
+    j.command('export PATH=/root/.pixi/bin:$PATH')
+    j.command('pixi install')
+    j.command(f'pixi run python embeddings/avg_files.py --input /h5_files/{input_folder}/{file_name} --output avg.h5')
 
     j.command(f'mv avg.h5 {j.ofile1}')
     b.write_output(j.ofile1, f'{output_folder}/{file_name}_avg.h5')
