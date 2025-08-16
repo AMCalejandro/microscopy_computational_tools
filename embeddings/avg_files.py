@@ -94,9 +94,9 @@ def main():
 
     if args.merge:
         if os.path.isdir(args.input):
-            tmp_paths = sorted(glob(os.path.join(args.input, "*_avg.h5")))
+            tmp_paths = sorted(glob.glog(os.path.join(args.input, "*_avg.h5")))
         else:
-            tmp_paths = sorted(glob(args.input))
+            tmp_paths = sorted(glob.glob(args.input))
         if not tmp_paths:
             raise FileNotFoundError(f"No files found to merge in {args.input}")
         print(f"Merging {len(tmp_paths)} averaged files into {args.output}")
