@@ -46,7 +46,7 @@ for plate in plates:
     j.command('curl -fsSL https://pixi.sh/install.sh | sh')
     j.command('export PATH=/root/.pixi/bin:$PATH')
     j.command('pixi install')
-    j.command(f'pixi run python embeddings/run_model.py {args.model} {model_weights} /images/{quote(image_folder)} {quote(args.channel_names)} {quote(args.channel_substrings)} {quote(centers_file)} {num_workers} embedding.tsv crops.png')
+    j.command(f'pixi run python embeddings/run_model.py {args.model} {model_weights} /images/{quote(image_folder)} {quote(args.channel_names)} {quote(args.channel_substrings)} {quote(centers_file)} {num_workers} embedding.tsv crops.png True')
     j.command(f'mv embedding.tsv {j.ofile1}')
     j.command(f'mv crops.png {j.ofile2}')
     b.write_output(j.ofile1, f'{output_folder}/embedding_{args.model}_{plate}.tsv')
