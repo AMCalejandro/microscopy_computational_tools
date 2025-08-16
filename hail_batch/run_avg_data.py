@@ -16,11 +16,12 @@ input_folder = plate_path.path.strip('/')
 
 output_path = urlparse(args.output_folder)
 output_bucket_name = output_path.netloc
-output_folder = args.output_folder.rstrip('/')
+output_folder = output_path.path.strip('/')
 
-# print(plate_path)
-# print(bucket_name)
-# print(input_folder)
+print(plate_path)
+print(bucket_name)
+print(input_folder)
+print(output_folder)
 
 with open('config.yaml', 'r') as f:
     config = yaml.safe_load(f)
@@ -43,8 +44,6 @@ if not h5_files:
 avg_jobs = []
 for file_path in h5_files:
     file_name = os.path.splitext(os.path.basename(file_path))[0]
-    # avg_file = f"{file_name.replace('.h5', '_avg.h5')}"
-    # avg_outputs.append(avg_file)
     j = b.new_job(name=f"avg-{file_name}")
     avg_jobs.append(j)
     j.cloudfuse(bucket_name, '/h5_files')
@@ -70,7 +69,7 @@ for job in avg_jobs:
 
 m.cloudfuse(bucket_name, '/h5_files')
 m._machine_type = config['embedding']['machine-type']
-j.storage("30G")
+m.storage("30G")
 
 m.command('apt update')
 m.command('apt install -y git curl moreutils')
