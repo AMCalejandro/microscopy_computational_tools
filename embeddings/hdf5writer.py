@@ -113,7 +113,7 @@ class embedding_writer:
         ])
         self.dataset.write_rows(np.concatenate((meta, embeddings), axis=1))
 
-    def close(self, compute_averages=True):
+    def close(self, compute_averages=False):
         self.h5writer.add_metadata({"filename": self.filenames}, group_name="meta")
         if compute_averages:
             self.h5writer.add_averages(self.model_name, self.filenames)
