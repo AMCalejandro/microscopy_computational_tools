@@ -94,7 +94,7 @@ def main():
 
     if args.merge:
         if os.path.isdir(args.input):
-            tmp_paths = sorted(glob.glog(os.path.join(args.input, "*_avg.h5")))
+            tmp_paths = sorted(glob.glob(os.path.join(args.input, "*_avg.h5")))
         else:
             tmp_paths = sorted(glob.glob(args.input))
         if not tmp_paths:
