@@ -36,6 +36,7 @@ class HDF5Dataset:
             buffer = np.concatenate(self.buffer, axis=0)
             self._write(buffer)
 
+
 class HDF5Writer:
     """
     Wrapper for creating and writing to an HDF5 file.
@@ -61,6 +62,34 @@ class HDF5Writer:
                 col_data = col_data.astype('S')
             meta_group.create_dataset(col, data=col_data, compression='gzip')
 
+    def compute_averages(self, dataset_name: str):
+        """Compute averages of embeddings per file_idx, add as <dataset>_averages."""
+        dset = self.h5file[dataset_name]
+        data = dset[:]  # load all
+        file_idx = data[:, 0].astype(int)
+        embeddings = data[:, 3:]  # skip first 3 metadata columns
+
+        averages = []
+        indices = []
+        for idx in np.unique(file_idx):
+            mask = (file_idx == idx)
+            avg_vec = embeddings[mask].mean(axis=0)
+            averages.append(avg_vec)
+            indices.append(idx)
+
+        averages = np.vstack(averages)
+        indices = np.array(indices).reshape(-1, 1)
+
+        result = np.hstack((indices, averages))
+
+        avg_dset = self.h5file.create_dataset(
+            f"{dataset_name}_averages",
+            shape=result.shape,
+            dtype='f4',
+            compression='gzip'
+        )
+        avg_dset[:, :] = result
+
     def close(self):
         _ = [dset.finalize() for dset in self.datasets]
         self.h5file.close()
@@ -69,6 +98,7 @@ class HDF5Writer:
 class embedding_writer:
     def __init__(self, filename: str, model_name: str, num_rows: int, num_cols: int, dtype='f4'):
         self.h5writer = HDF5Writer(filename)
+        self.model_name = model_name
         self.filenames = []
         num_cols += 3 # add file_idx, center_i, center_j columns
         self.dataset = self.h5writer.add_dataset(model_name, num_rows, num_cols, dtype)
@@ -78,9 +108,11 @@ class embedding_writer:
             self.filenames.append(filename)
         file_idx = len(self.filenames) - 1
         meta = np.array([[file_idx]*len(centers_i), centers_i, centers_j]).T
-        self.dataset.write_rows( np.concatenate((meta, embeddings), axis=1) )
+        self.dataset.write_rows(np.concatenate((meta, embeddings), axis=1))
 
-    def close(self):
+    def close(self, compute_averages = True):
         meta = pd.DataFrame({'filename': self.filenames})
         self.h5writer.add_metadata(meta)
+        if compute_averages:
+            self.h5writer.compute_averages(self.model_name)
         self.h5writer.close()
