@@ -52,7 +52,8 @@ def cell_embeddings(model_name, model_path, images_folder, centers, output_file,
     if output_file.endswith('.h5') or output_file.endswith('.hdf5'):
         from hdf5writer import embedding_writer
         num_rows = len(ds)
-        writer = embedding_writer(output_file, model_name, num_rows, num_output_features, 'f4')
+        num_rows_avg = len(image_groups)
+        writer = embedding_writer(output_file, model_name, num_rows, num_rows_avg, num_output_features, 'f4', averages)
     else:
         from csvwriter import CSVWriter
         writer = CSVWriter(output_file)
@@ -82,7 +83,7 @@ def cell_embeddings(model_name, model_path, images_folder, centers, output_file,
     if inspection_file is not None:
         subimage_inspector.save(inspection_file)
 
-    writer.close(compute_averages=averages)
+    writer.close()
 
 
 parser = argparse.ArgumentParser(description='run_dino4cells', prefix_chars='@')
@@ -112,4 +113,4 @@ channel_substrings = [s.strip() for s in args.channel_substrings.split(',')]
 
 centers = pd.read_table(args.centers_path, converters={'i':literal_eval, 'j':literal_eval}, index_col='file')
 
-cell_embeddings(args.model, args.model_path, images_folder, centers, args.output_file, args.inspection_file, channel_names, channel_substrings, args.num_workers, args.averages)
+cell_embeddings(args.model, args.model_path, images_folder, centers, args.output_file, args.inspection_file, channel_names, channel_substrings, args.num_workers)
