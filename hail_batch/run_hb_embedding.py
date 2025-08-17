@@ -12,6 +12,7 @@ parser.add_argument('channel_names', type=str, help='comma seperated names of ch
 parser.add_argument('channel_substrings', type=str, help='comma seperated substrings of filename to identify channels')
 parser.add_argument('centers_folder', type=str, help='folder containing cell centers files')
 parser.add_argument('plates', type=str, help='comma separated plate names')
+parser.add_argument('averages', type=lambda x: x.lower() in ['True'], nargs='?', cost=True, default=False, help='whether to compute averages (True/False, default=False)')
 
 args = parser.parse_args()
 plates = args.plates.split(',')
@@ -46,7 +47,7 @@ for plate in plates:
     j.command('curl -fsSL https://pixi.sh/install.sh | sh')
     j.command('export PATH=/root/.pixi/bin:$PATH')
     j.command('pixi install')
-    j.command(f'pixi run python embeddings/run_model.py {args.model} {model_weights} /images/{quote(image_folder)} {quote(args.channel_names)} {quote(args.channel_substrings)} {quote(centers_file)} {num_workers} embedding.tsv crops.png')
+    j.command(f'pixi run python embeddings/run_model.py {args.model} {model_weights} /images/{quote(image_folder)} {quote(args.channel_names)} {quote(args.channel_substrings)} {quote(centers_file)} {num_workers} embedding.tsv crops.png {args.averages}')
     j.command(f'mv embedding.tsv {j.ofile1}')
     j.command(f'mv crops.png {j.ofile2}')
     b.write_output(j.ofile1, f'{output_folder}/embedding_{args.model}_{plate}.tsv')

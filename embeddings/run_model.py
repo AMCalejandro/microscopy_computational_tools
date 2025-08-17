@@ -10,16 +10,16 @@ import argparse
 from torch.utils.data import DataLoader
 from image_loader import Data_Set, Batch_Sampler
 
-def cell_embeddings(model_name, model_path, images_folder, centers, output_file, inspection_file, channel_names, channel_substrings, num_workers):
+def cell_embeddings(model_name, model_path, images_folder, centers, output_file, inspection_file, channel_names, channel_substrings, num_workers, averages):
     output = []
     if model_name == 'dino4cells':
         from dino4cells.simple_embed import dino_model
-        model = dino_model(args.model_path)
+        model = dino_model(model_path)
         num_output_features = 768
         input_channels = ['DNA', 'RNA', 'ER', 'AGP', 'Mito']
     else:
         from cpcnn.simple_embed import cpcnn_model
-        model = cpcnn_model(args.model_path)
+        model = cpcnn_model(model_path)
         num_output_features = 672
         input_channels = ['DNA', 'RNA', 'ER', 'AGP', 'Mito']
 
@@ -82,7 +82,7 @@ def cell_embeddings(model_name, model_path, images_folder, centers, output_file,
     if inspection_file is not None:
         subimage_inspector.save(inspection_file)
 
-    writer.close()
+    writer.close(compute_averages=averages)
 
 
 parser = argparse.ArgumentParser(description='run_dino4cells', prefix_chars='@')
@@ -95,6 +95,8 @@ parser.add_argument('centers_path', type=str, help='filename with cell centers')
 parser.add_argument('num_workers', type=int, help='number of processes for loading data')
 parser.add_argument('output_file', type=str, help='output filename', nargs='?', default='embedding.tsv')
 parser.add_argument('inspection_file', type=str, help='output filename with image crops for manual inspection', nargs='?')
+parser.add_argument('averages', type=lambda x: x.lower() in ['True'], nargs='?', cost=True, default=False, help='whether to compute averages (True/False, default=False)')
+
 args = parser.parse_args()
 
 images_folder = args.plate_path
@@ -110,4 +112,4 @@ channel_substrings = [s.strip() for s in args.channel_substrings.split(',')]
 
 centers = pd.read_table(args.centers_path, converters={'i':literal_eval, 'j':literal_eval}, index_col='file')
 
-cell_embeddings(args.model, args.model_path, images_folder, centers, args.output_file, args.inspection_file, channel_names, channel_substrings, args.num_workers)
+cell_embeddings(args.model, args.model_path, images_folder, centers, args.output_file, args.inspection_file, channel_names, channel_substrings, args.num_workers, args.averages)
