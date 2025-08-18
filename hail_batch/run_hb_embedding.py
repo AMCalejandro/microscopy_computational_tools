@@ -10,7 +10,7 @@ parser.add_argument('plate_path', type=str, help='folder containing plates')
 parser.add_argument('output_folder', type=str, help='output folder')
 parser.add_argument('channel_names', type=str, help='comma seperated names of channels')
 parser.add_argument('channel_substrings', type=str, help='comma seperated substrings of filename to identify channels')
-parser.add_argument('centers_folder', type=str, help='folder containing cell centers files')
+parser.add_argument('centers_path', type=str, help='path to cell centers')
 parser.add_argument('plates', type=str, help='comma separated plate names')
 parser.add_argument('averages', type=lambda x: x.lower() in ['true'], nargs='?', default=False, help='whether to compute averages (True/False, default=False)')
 args = parser.parse_args()
@@ -36,7 +36,7 @@ for plate in plates:
     j.storage('30Gi') # should be large enough for pixi (12 GB), model and tsv output (not for images)
     
     model_weights = b.read_input(config['embedding']['model-weights'][args.model])
-    centers_file = b.read_input(f"{args.centers_folder.rstrip('/')}/cellpose_{plate}.tsv")
+    centers_file = b.read_input(args.centers_path.format(plate=plate))
     
     num_workers = config['embedding']['num-workers']
     image_folder = f'{input_folder}/{plate}/'
