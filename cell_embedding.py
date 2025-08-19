@@ -59,11 +59,11 @@ def cell_embeddings(model_name, model_path, images_folder, centers, output_file,
         from utils.hdf5writer import embedding_writer
         num_rows = len(ds)
         # the +2 accounts for i/j coordinates
-        # writer = embedding_writer(output_file, model_name, num_rows, num_output_features + 2, 'f4')
+        writer = embedding_writer(output_file, model_name, num_rows, num_output_features + 2, 'f4')
     else:
         from utils.csvwriter import CSVWriter
         writer = CSVWriter(output_file)
-        # writer.write_header("file i j embedding".split())
+        writer.write_header("file i j embedding".split())
     
     if averages: # Create a new writer for averages
         from utils.csvwriter import CSVWriter
@@ -87,7 +87,7 @@ def cell_embeddings(model_name, model_path, images_folder, centers, output_file,
         if inspection_file is not None:
             subimage_inspector.add(dna_imname, centers_i, centers_j, subimages)
         embeddings = model(subimages)
-        # writer.writerows(dna_imname, [centers_i, centers_j, embeddings])
+        writer.writerows(dna_imname, [centers_i, centers_j, embeddings])
         if averages:
             writer_avg.writerow(dna_imname, np.insert(embeddings.mean(axis=0), 0, embeddings.shape[0]))
         
@@ -97,7 +97,7 @@ def cell_embeddings(model_name, model_path, images_folder, centers, output_file,
     if inspection_file is not None:
         subimage_inspector.save(inspection_file)
 
-    # writer.close()
+    writer.close()
     if averages:
         writer_avg.close()
 
